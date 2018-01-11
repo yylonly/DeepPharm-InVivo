@@ -47,6 +47,7 @@ import org.deeplearning4j.nn.transferlearning.FineTuneConfiguration;
 import org.deeplearning4j.nn.transferlearning.TransferLearning;
 import org.deeplearning4j.nn.weights.WeightInit;
 import org.deeplearning4j.optimize.listeners.ScoreIterationListener;
+import org.deeplearning4j.util.ModelSerializer;
 import org.nd4j.jita.conf.CudaEnvironment;
 import org.nd4j.linalg.activations.Activation;
 import org.nd4j.linalg.api.ndarray.INDArray;
@@ -108,16 +109,18 @@ public class PretainNetwork {
 		if (args.length == 3) {
 			epoch = Integer.valueOf(args[2]);
 		}
-//		CudaEnvironment.getInstance().getConfiguration().
-//		setMaximumDeviceCacheableLength(1024 * 1024 * 1024L).
-//		setMaximumDeviceCache((long) (0.5 * 8 * 1024L * 1024L * 1024L)).
-//		setMaximumHostCacheableLength(1024 * 1024 * 1024L).
-//		setMaximumHostCache((long) (0.5 * 8 * 1024 * 1024 * 1024L));
-//		
+		CudaEnvironment.getInstance().getConfiguration().
+		setMaximumDeviceCacheableLength(1024 * 1024 * 1024L).
+		setMaximumDeviceCache((long) (0.5 * 8 * 1024L * 1024L * 1024L)).
+		setMaximumHostCacheableLength(1024 * 1024 * 1024L).
+		setMaximumHostCache((long) (0.5 * 8 * 1024 * 1024 * 1024L));
+		
 //		CudaEnvironment.getInstance().getConfiguration().allowMultiGPU(true);
 		
 		// Disable GC
-		Nd4j.getMemoryManager().togglePeriodicGc(false);
+		Nd4j.getMemoryManager().setAutoGcWindow(5000);
+
+//		Nd4j.getMemoryManager().togglePeriodicGc(false);
 		
 		//data read
 		int numLinesToSkip = 0;
@@ -235,6 +238,7 @@ public class PretainNetwork {
 			double subloadingtime = 0;
 			double submaskingtime = 0;
 			double subacc = 0;
+			double subcount = 0;
 			
 			while (ADMEiter.hasNext()) {
 				
@@ -278,9 +282,16 @@ public class PretainNetwork {
 //				System.out.println(computeAUC(data.getLabels()[0], net.output(data.getFeatures()[0])[0], masks[0]));
 				
 				
-				float batchacc = computeBatchPostiveAccuracy(data.getLabels()[0], net.output(data.getFeatures()[0])[0], masks[0], 0.5);
+				double batchacc = computePostiveAccuracy(data.getLabels()[0], net.output(data.getFeatures()[0])[0], masks[0], 0.5);
 //				System.out.println("batchacc" + batchacc);
-				subacc+=batchacc;
+				
+				if (batchacc != -1) {
+					subacc+=batchacc;
+					subcount++;
+				}
+					
+				
+				
 				
 				if (numberOfBatchSize % 50 == 0) {
 					System.out.println("epoch:" + i + ", batch number:" + numberOfBatchSize + "/" + totalNumberofBatch + ", 50 loadding time:" + subloadingtime + " ms, masking time:"+ 
@@ -288,7 +299,7 @@ public class PretainNetwork {
 								String.format("%.2f", epochTime/1000F) + " s" + ", exist number:" +  existtargetnumber + ", activity number:" + activitynumber +
 								" activity rate: " + String.format("%.2f", (activitynumber / existtargetnumber)*100)  + 
 								"%, correct activity number: " + activitypredictioncorectnessnumber + 
-								", 50 batch acc:" + subacc/50L*100 + " %" + ", error: " + net.score());
+								", 50 batch acc:" + subacc/subcount*100 + " %" + ", error: " + net.score());
 					subEpochTime = 0;
 					subloadingtime = 0;
 					submaskingtime = 0;
@@ -296,6 +307,7 @@ public class PretainNetwork {
 					activitynumber = 0;
 					activitypredictioncorectnessnumber = 0;
 					existtargetnumber = 0;
+					subcount = 0;
 				}
 				
 				numberOfBatchSize++;
@@ -309,16 +321,37 @@ public class PretainNetwork {
 			subEpochTime = 0;
 			
 			//evalute every 10 epochs
-//			if (i % 1 == 0) {				
-//				System.out.println("-------------------- epoch " + i + "----------------------- ");
-//				System.out.println("-------------------- tranning set ----------------------- ");
-//				testing(net, ADMEiter, MSEs, true, R2s, false, accurecyMAEs, true, false);
-//	
-//				System.out.println("-------------------- validation set ----------------------- ");
+			if (i % 5 == 0) {				
+				
+				System.out.println("-------------------- epoch " + i + "----------------------- ");
+				System.out.println("-------------------- accuracy only activity  ----------------------- ");
+				activitynumber = 0;
+				activitypredictioncorectnessnumber = 0;
+				System.out.println("test accuracy only 1:" +  TruePositive(net, ADMEiter)*100 + "%");
+				System.out.println("activitynumber:" + activitynumber);
+				System.out.println("activitypredictioncorectnessnumber: " + activitypredictioncorectnessnumber);
+				
+				System.out.println("-------------------- binary accuracy  ----------------------- ");	
+				System.out.println("test accuracy 0 and 1:" +  Accuracy(net, ADMEiter)*100 + "%");		
+				
+//				System.out.println("-------------------- AUC  ----------------------- ");	
+//				System.out.println("test accuracy AUC:" +  MultiAUC(net, ADMEiter)*100 + "%");		
+
+
+				System.out.println("-------------------- validation set ----------------------- ");
 //				testing(net, ADMEDeviter, MSEDevs, true, R2Devs, false, accurecyMAEDevs, true, false);
-//		
-//
-//			}
+				
+				System.out.println("-------------------- accuracy only activity  ----------------------- ");
+				activitynumber = 0;
+				activitypredictioncorectnessnumber = 0;
+				System.out.println("test accuracy:" +  TruePositive(net, ADMEDeviter)*100 + "%");
+				System.out.println("activitynumber: " + activitynumber);
+				System.out.println("activitypredictioncorectnessnumber: " + activitypredictioncorectnessnumber);
+				
+				System.out.println("-------------------- binary accuracy  ----------------------- ");	
+				System.out.println("test accuracy:" +  Accuracy(net, ADMEDeviter)*100 + "%");		
+
+			}
 		}		
 	
 		//Net Configuration Summary
@@ -331,6 +364,23 @@ public class PretainNetwork {
 		System.out.println("lambda :" + lambd); 
 		
 		
+        File locationToSave = new File("DeepPharm.zip");       //Where to save the network. Note: the file is in .zip format - can be opened externally
+        boolean saveUpdater = true;                                             //Updater: i.e., the state for Momentum, RMSProp, Adagrad etc. Save this if you want to train your network more in the future
+        try {
+			ModelSerializer.writeModel(net, locationToSave, saveUpdater);
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+        
+//        //Load the model
+//        try {
+//			ComputationGraph restored = ModelSerializer.restoreComputationGraph(locationToSave);
+//		} catch (IOException e) {
+//			// TODO Auto-generated catch block
+//			e.printStackTrace();
+//		}
+		
 		
 		System.out.println("-------------------- final testing ADME ----------------------- ");
 		System.out.println("-------------------- tranning set ----------------------- ");
@@ -339,15 +389,15 @@ public class PretainNetwork {
 		System.out.println("-------------------- accuracy only activity  ----------------------- ");
 		activitynumber = 0;
 		activitypredictioncorectnessnumber = 0;
-		System.out.println("test accuracy only 1:" +  MultiBinaryPostiveAccuracy(net, ADMEiter)*100 + "%");
+		System.out.println("test accuracy only 1:" +  TruePositive(net, ADMEiter)*100 + "%");
 		System.out.println("activitynumber:" + activitynumber);
 		System.out.println("activitypredictioncorectnessnumber: " + activitypredictioncorectnessnumber);
 		
 		System.out.println("-------------------- binary accuracy  ----------------------- ");	
-		System.out.println("test accuracy 0 and 1:" +  MultiBinaryAccuracy(net, ADMEiter)*100 + "%");		
+		System.out.println("test accuracy 0 and 1:" +  Accuracy(net, ADMEiter)*100 + "%");		
 		
-		System.out.println("-------------------- AUC  ----------------------- ");	
-		System.out.println("test accuracy AUC:" +  MultiAUC(net, ADMEiter)*100 + "%");		
+//		System.out.println("-------------------- AUC  ----------------------- ");	
+//		System.out.println("test accuracy AUC:" +  MultiAUC(net, ADMEiter)*100 + "%");		
 
 
 		System.out.println("-------------------- validation set ----------------------- ");
@@ -356,15 +406,15 @@ public class PretainNetwork {
 		System.out.println("-------------------- accuracy only activity  ----------------------- ");
 		activitynumber = 0;
 		activitypredictioncorectnessnumber = 0;
-		System.out.println("test accuracy:" +  MultiBinaryPostiveAccuracy(net, ADMEDeviter)*100 + "%");
+		System.out.println("test accuracy:" +  TruePositive(net, ADMEDeviter)*100 + "%");
 		System.out.println("activitynumber: " + activitynumber);
 		System.out.println("activitypredictioncorectnessnumber: " + activitypredictioncorectnessnumber);
 		
 		System.out.println("-------------------- binary accuracy  ----------------------- ");	
-		System.out.println("test accuracy:" +  MultiBinaryAccuracy(net, ADMEDeviter)*100 + "%");		
+		System.out.println("test accuracy:" +  Accuracy(net, ADMEDeviter)*100 + "%");		
 		
-		System.out.println("-------------------- AUC  ----------------------- ");	
-		System.out.println("test accuracy AUC:" +  MultiAUC(net, ADMEDeviter)*100 + "%");	
+//		System.out.println("-------------------- AUC  ----------------------- ");	
+//		System.out.println("test accuracy AUC:" +  MultiAUC(net, ADMEDeviter)*100 + "%");	
 		
 	}
 	
@@ -408,7 +458,7 @@ public class PretainNetwork {
 		
 	}
 	
-	public static float MultiAUC(ComputationGraph net, MultiDataSetIterator iter) {
+	public static float AUC(ComputationGraph net, MultiDataSetIterator iter) {
 		
 		double starttime = System.currentTimeMillis();
 		
@@ -423,7 +473,43 @@ public class PretainNetwork {
 			
 			INDArray[] masks = computeOutPutMaskBinaray(data);
 			
-			score += computeAUC(data.getLabels()[0], net.output(data.getFeatures()[0])[0], masks[0]);
+			double s = computeAUC(data.getLabels()[0], net.output(data.getFeatures()[0])[0], masks[0]);
+			
+			System.out.println("batch AUC is:" + s);
+			
+			score += s;
+				
+			i++;
+			
+			if (i % 100 == 0) 
+				System.out.println("test on sub batch: " + i + "/" + totalNumberofBatch + ", average AUC is:" + score/i);
+		}
+		
+		iter.reset();
+		
+		System.out.println("Test time elasped: " + (System.currentTimeMillis() - starttime) / 1000F + "s");
+		
+		return score/i;
+		
+	}
+	
+	//compute on whole dataset 0 and 1
+	public static float Accuracy(ComputationGraph net, MultiDataSetIterator iter) {
+		
+		double starttime = System.currentTimeMillis();
+		
+		iter.reset();
+		
+		float i = 0;
+		float score = 0;
+		
+		while (iter.hasNext()) {
+			
+			MultiDataSet data = iter.next();
+			
+			INDArray[] masks = computeOutPutMaskBinaray(data);
+			
+			score += computeAccuracy(data.getLabels()[0], net.output(data.getFeatures()[0])[0], masks[0], 0.5);
 				
 			i++;
 			
@@ -439,72 +525,9 @@ public class PretainNetwork {
 		
 	}
 	
-	public static float MultiBinaryAccuracy(ComputationGraph net, MultiDataSetIterator iter) {
-		
-		double starttime = System.currentTimeMillis();
-		
-		iter.reset();
-		
-		float i = 0;
-		float score = 0;
-		
-		while (iter.hasNext()) {
-			
-			MultiDataSet data = iter.next();
-			
-			INDArray[] masks = computeOutPutMaskBinaray(data);
-			
-			score += computeBatchAccuracy(data.getLabels()[0], net.output(data.getFeatures()[0])[0], masks[0], 0.5);
-				
-			i++;
-			
-			if (i % 100 == 0) 
-				System.out.println("test on sub batch: " + i + "/" + totalNumberofBatch);
-		}
-		
-		iter.reset();
-		
-		System.out.println("Test time elasped: " + (System.currentTimeMillis() - starttime) / 1000F + "s");
-		
-		return score/i;
-		
-	}
 	
-	public static float MultiBinaryPostiveAccuracy(ComputationGraph net, MultiDataSetIterator iter) {
-		
-		double starttime = System.currentTimeMillis();
-		
-		iter.reset();
-		
-		float i = 0;
-		float score = 0;
-		
-		while (iter.hasNext()) {
-			
-			MultiDataSet data = iter.next();
-			
-			INDArray[] masks = computeOutPutMaskBinaray(data);
-			
-			float currentscore = computeBatchPostiveAccuracy(data.getLabels(0), net.outputSingle(data.getFeatures(0)), masks[0], 0.5);
-					
-			if (score != -1) {
-				score += currentscore;
-				i++;
-			}				
-			
-			if (i % 100 == 0) 
-				System.out.println("test on sub batch: " + i + "/" + totalNumberofBatch);
-		}
-		
-		iter.reset();
-		
-		System.out.println("Test time elasped: " + (System.currentTimeMillis() - starttime) / 1000F + "s");
-		
-		return score/i;
-		
-	}
-	
-	public static float computeBatchAccuracy(INDArray lablesTest, INDArray PredictionTest, INDArray mask, double therdsold) {
+	//batch 0 and 1
+	public static float computeAccuracy(INDArray lablesTest, INDArray PredictionTest, INDArray mask, double therdsold) {
 		
 
 		BooleanIndexing.replaceWhere(PredictionTest, 1,  Conditions.greaterThanOrEqual(therdsold));
@@ -543,7 +566,44 @@ public class PretainNetwork {
 		return batchcorrectness;
 	}
 	
-	public static float computeBatchPostiveAccuracy(INDArray lablesTest, INDArray PredictionTest, INDArray mask, double therdsold) {
+	
+	//compute on whole dataset only 1
+	public static float TruePositive(ComputationGraph net, MultiDataSetIterator iter) {
+		
+		double starttime = System.currentTimeMillis();
+		
+		iter.reset();
+		
+		float i = 0;
+		float score = 0;
+		
+		while (iter.hasNext()) {
+			
+			MultiDataSet data = iter.next();
+			
+			INDArray[] masks = computeOutPutMaskBinaray(data);
+			
+			float currentscore = computePostiveAccuracy(data.getLabels(0), net.outputSingle(data.getFeatures(0)), masks[0], 0.5);
+					
+			if (currentscore != -1) {
+				score += currentscore;
+				i++;
+			}				
+			
+			if (i % 100 == 0) 
+				System.out.println("test on sub batch: " + i + "/" + totalNumberofBatch);
+		}
+		
+		iter.reset();
+		
+		System.out.println("Test time elasped: " + (System.currentTimeMillis() - starttime) / 1000F + "s");
+		
+		return score/i;
+		
+	}
+	
+	//batch 1
+	public static float computePostiveAccuracy(INDArray lablesTest, INDArray PredictionTest, INDArray mask, double therdsold) {
 		
 //		System.out.println("label:" + lablesTest);
 //		System.out.println("predict:" + PredictionTest);

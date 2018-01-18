@@ -88,15 +88,71 @@ public class WeightedL2Loss extends LossL2 {
     @Override //indepented with score compute
     public INDArray computeGradient(INDArray labels, INDArray preOutput, IActivation activationFn, INDArray mask) {
     	
-    	//invoke super computeGradient
-    	INDArray gradients = super.computeGradient(labels, preOutput, activationFn, mask);
+        if (labels.size(1) != preOutput.size(1)) {
+            throw new IllegalArgumentException("Labels array numColumns (size(1) = " + labels.size(1)
+                            + ") does not match output layer" + " number of outputs (nOut = " + preOutput.size(1)
+                            + ") ");
+            
+        }
+        
+        INDArray output = activationFn.getActivation(preOutput.dup(), true);
+
+        INDArray dLda = output.subi(labels).muli(2);
+        
+        int r = labels.rows();
+        int c = labels.columns();
+        for (int i = 0; i < r; i++) {
+        		for (int j = 0; j < c; j++) {
+        			
+        			if (mask.getDouble(i, j) == 1) {
+        				
+//        				System.out.println("output: " + output.getDouble(i, j));
+        				
+        				
+//        				System.out.println("before: " + dLda.getDouble(i, j));
+        				if (labels.getDouble(i, j) == 1)
+        					dLda.put(i, j, dLda.getDouble(i, j) * 100);
+        				
+//        				if (labels.getDouble(i, j) == 0 && output.getDouble(i, j) > 0)
+//        					dLda.put(i, j, dLda.getDouble(i, j) * 100);
+        				
+//        				System.out.println("after: " + dLda.getDouble(i, j));
+        			}
+        			
+        		}
+        }
+              
+//        System.out.println("dlda: " + dLda.shapeInfoToString());
+
+
+        if (weights != null) {
+            dLda.muliRowVector(weights);
+        }
+
+        if(mask != null && LossUtil.isPerOutputMasking(dLda, mask)){
+            //For *most* activation functions: we don't actually need to mask dL/da in addition to masking dL/dz later
+            //but: some, like softmax, require both (due to dL/dz_i being a function of dL/da_j, for i != j)
+            //We could add a special case for softmax (activationFn instanceof ActivationSoftmax) but that would be
+            // error prone - but buy us a tiny bit of performance
+            LossUtil.applyMask(dLda, mask);
+        }
+
+        INDArray gradients = activationFn.backprop(preOutput, dLda).getFirst(); //TODO handle activation function parameter gradients
+
+        //Loss function with masking
+        if (mask != null) {
+            LossUtil.applyMask(gradients, mask);
+        }
     	
-//    	System.out.println("compute graident" + gradients);
-    	
-    	//weight gradient
-    	gradients.muli(outputweight);
-    	
-        return gradients;
-    }
+//	    	System.out.println("gradients: " + gradients.shapeInfoToString());
+	    	
+	//    	System.out.println("compute graident" + gradients);
+	    	
+	    	//weight gradient
+	    	gradients.muli(outputweight); 
+	    	
+	    return gradients;
+	    
+	}
 
 }

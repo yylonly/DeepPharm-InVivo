@@ -184,8 +184,8 @@ public class PretainNetwork {
 				//flowing method set attribute then return this object
 				.seed(123456)
 	            .learningRate(learningrate)
-	            .learningRateDecayPolicy(LearningRatePolicy.Exponential)
-	            .lrPolicyDecayRate(decayRate)
+//	            .learningRateDecayPolicy(LearningRatePolicy.Exponential)
+//	            .lrPolicyDecayRate(decayRate)
 	            .updater(Updater.ADAM)           
                 .weightInit(WeightInit.XAVIER)
 //                .regularization(true)

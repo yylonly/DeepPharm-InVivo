@@ -94,7 +94,8 @@ public class PretainNetwork {
 	static int trainsetsize = 432803;
 	static int batchSize = 200;
 	static int totalNumberofBatch = trainsetsize / batchSize;
-	static double learningrate = 0.03;
+	static double learningrate = 0.01;
+	static double decayRate = 2;
 	static double lambd = 0.01;
 	static double beta1 = 0.5;
 	static double beta2 = 0.999;
@@ -115,10 +116,10 @@ public class PretainNetwork {
 		setMaximumHostCacheableLength(1024 * 1024 * 1024L).
 		setMaximumHostCache((long) (0.5 * 8 * 1024 * 1024 * 1024L));
 		
-//		CudaEnvironment.getInstance().getConfiguration().allowMultiGPU(true);
+		CudaEnvironment.getInstance().getConfiguration().allowMultiGPU(true);
 		
 		// Disable GC
-		Nd4j.getMemoryManager().setAutoGcWindow(5000);
+		Nd4j.getMemoryManager().setAutoGcWindow(50000);
 
 //		Nd4j.getMemoryManager().togglePeriodicGc(false);
 		
@@ -183,12 +184,12 @@ public class PretainNetwork {
 				//flowing method set attribute then return this object
 				.seed(123456)
 	            .learningRate(learningrate)
-//	            .learningRateDecayPolicy(LearningRatePolicy.Inverse)
-//	            .lrPolicyDecayRate(0.001).lrPolicyPower(2)
+	            .learningRateDecayPolicy(LearningRatePolicy.Exponential)
+	            .lrPolicyDecayRate(decayRate)
 	            .updater(Updater.ADAM)           
                 .weightInit(WeightInit.XAVIER)
 //                .regularization(true)
-//                .l1(lambd)
+//                .l2(lambd)
 		        .graphBuilder()  //create GraphBuilder with global builder 
 				       
 		        
@@ -207,7 +208,6 @@ public class PretainNetwork {
 		        .addLayer("M5", new DenseLayer.Builder().activation(Activation.TANH).nIn(300).nOut(200).build(), "M4")	       
 		        .addLayer("FEATURE", new DenseLayer.Builder().activation(Activation.TANH).nIn(200).nOut(100).build(), "M5")
 		        .addLayer("HIDDEN", new DenseLayer.Builder().activation(Activation.TANH).nIn(100).nOut(1000).build(), "FEATURE")
-
 
 		        .addLayer("TASKS", new OutputLayer.Builder().activation(Activation.SIGMOID)
 		                .lossFunction(new WeightedL2Loss(1))
@@ -239,6 +239,7 @@ public class PretainNetwork {
 			double submaskingtime = 0;
 			double subacc = 0;
 			double subcount = 0;
+//			SingularAssesmentMetrics s = new SingularAssesmentMetrics();
 			
 			while (ADMEiter.hasNext()) {
 				
@@ -257,57 +258,38 @@ public class PretainNetwork {
 				double maskingtime =  ((double) System.currentTimeMillis() - substart);
 				submaskingtime+=maskingtime;
 				
+				
 				//fit data
 				substart = System.currentTimeMillis();
-//				System.out.println("prediction" + net.output(data.getFeatures()[0])[0]);
 				net.fit(data);
-//				System.out.println("batch error:" + net.score() + "\n");
-//				net.fit(data);	
-//				System.out.println("batch error:" + net.score() + "\n");
 	
 				double traintime =  ((double) System.currentTimeMillis() - substart);
 				epochTime += loadingtime+maskingtime+traintime;
-				subEpochTime += loadingtime+maskingtime+traintime;
-					
+				subEpochTime += loadingtime+maskingtime+traintime;						
 				
-//				System.out.println("features:" + data.getFeatures()[0]);
-//				System.out.println("masks:" + data.getLabelsMaskArrays()[0]);
-//
-//				System.out.println("labels:" + data.getLabels()[0]);
-//
-//				System.out.println("predictions:" + net.output(data.getFeatures()[0])[0]);
-//				
-//				System.out.println("\n\n");
-				
-//				System.out.println(computeAUC(data.getLabels()[0], net.output(data.getFeatures()[0])[0], masks[0]));
-				
-				
-				double batchacc = computePostiveAccuracy(data.getLabels()[0], net.output(data.getFeatures()[0])[0], masks[0], 0.5);
-//				System.out.println("batchacc" + batchacc);
-				
-				if (batchacc != -1) {
-					subacc+=batchacc;
-					subcount++;
-				}
-					
-				
-				
+//				computeFMeasure(data.getLabels(0), data.getFeatures(0), masks[0], 0.5, s);			
 				
 				if (numberOfBatchSize % 50 == 0) {
+					
+//					System.out.println("precision:" + s.getPrecision());
+//					System.out.println("postive num:" + s.getPostivenum());
+//					System.out.println("tp num:" + s.getTruepostivenum());
+//					System.out.println("fp num:" + s.getFalsepositivenum());
+//					s.computeFinalScore();
+					
+//					System.out.println("epoch:" + i + ", batch number:" + numberOfBatchSize + "/" + totalNumberofBatch + ", 50 loadding time:" + subloadingtime + " ms, masking time:"+ 
+//								submaskingtime + " ms, training time:" + String.format("%.2f", subEpochTime) + " ms" + ", time elaspe:" +  
+//								String.format("%.2f", epochTime/1000F) + " s" + ", error: " + net.score() + ", recall:" + s.getRecall());
+					
 					System.out.println("epoch:" + i + ", batch number:" + numberOfBatchSize + "/" + totalNumberofBatch + ", 50 loadding time:" + subloadingtime + " ms, masking time:"+ 
-								submaskingtime + " ms, training time:" + String.format("%.2f", subEpochTime) + " ms" + ", time elaspe:" +  
-								String.format("%.2f", epochTime/1000F) + " s" + ", exist number:" +  existtargetnumber + ", activity number:" + activitynumber +
-								" activity rate: " + String.format("%.2f", (activitynumber / existtargetnumber)*100)  + 
-								"%, correct activity number: " + activitypredictioncorectnessnumber + 
-								", 50 batch acc:" + subacc/subcount*100 + " %" + ", error: " + net.score());
+							submaskingtime + " ms, training time:" + String.format("%.2f", subEpochTime) + " ms" + ", time elaspe:" +  
+							String.format("%.2f", epochTime/1000F) + " s" + ", error: " + net.score());
+					
 					subEpochTime = 0;
 					subloadingtime = 0;
 					submaskingtime = 0;
-					subacc = 0;
-					activitynumber = 0;
-					activitypredictioncorectnessnumber = 0;
-					existtargetnumber = 0;
-					subcount = 0;
+					
+//					s = new SingularAssesmentMetrics();
 				}
 				
 				numberOfBatchSize++;
@@ -323,34 +305,11 @@ public class PretainNetwork {
 			//evalute every 10 epochs
 			if (i % 5 == 0) {				
 				
-				System.out.println("-------------------- epoch " + i + "----------------------- ");
-				System.out.println("-------------------- accuracy only activity  ----------------------- ");
-				activitynumber = 0;
-				activitypredictioncorectnessnumber = 0;
-				System.out.println("test accuracy only 1:" +  TruePositive(net, ADMEiter)*100 + "%");
-				System.out.println("activitynumber:" + activitynumber);
-				System.out.println("activitypredictioncorectnessnumber: " + activitypredictioncorectnessnumber);
-				
-				System.out.println("-------------------- binary accuracy  ----------------------- ");	
-				System.out.println("test accuracy 0 and 1:" +  Accuracy(net, ADMEiter)*100 + "%");		
-				
-//				System.out.println("-------------------- AUC  ----------------------- ");	
-//				System.out.println("test accuracy AUC:" +  MultiAUC(net, ADMEiter)*100 + "%");		
-
-
+				System.out.println("-------------------- tranning set ----------------------- ");
+				test(net, ADMEiter);
 				System.out.println("-------------------- validation set ----------------------- ");
-//				testing(net, ADMEDeviter, MSEDevs, true, R2Devs, false, accurecyMAEDevs, true, false);
+				test(net, ADMEDeviter);
 				
-				System.out.println("-------------------- accuracy only activity  ----------------------- ");
-				activitynumber = 0;
-				activitypredictioncorectnessnumber = 0;
-				System.out.println("test accuracy:" +  TruePositive(net, ADMEDeviter)*100 + "%");
-				System.out.println("activitynumber: " + activitynumber);
-				System.out.println("activitypredictioncorectnessnumber: " + activitypredictioncorectnessnumber);
-				
-				System.out.println("-------------------- binary accuracy  ----------------------- ");	
-				System.out.println("test accuracy:" +  Accuracy(net, ADMEDeviter)*100 + "%");		
-
 			}
 		}		
 	
@@ -384,124 +343,277 @@ public class PretainNetwork {
 		
 		System.out.println("-------------------- final testing ADME ----------------------- ");
 		System.out.println("-------------------- tranning set ----------------------- ");
-//		testing(net, ADMEiter, MSEs, true, R2s, false, accurecyMAEs, true, false);
-		
-		System.out.println("-------------------- accuracy only activity  ----------------------- ");
-		activitynumber = 0;
-		activitypredictioncorectnessnumber = 0;
-		System.out.println("test accuracy only 1:" +  TruePositive(net, ADMEiter)*100 + "%");
-		System.out.println("activitynumber:" + activitynumber);
-		System.out.println("activitypredictioncorectnessnumber: " + activitypredictioncorectnessnumber);
-		
-		System.out.println("-------------------- binary accuracy  ----------------------- ");	
-		System.out.println("test accuracy 0 and 1:" +  Accuracy(net, ADMEiter)*100 + "%");		
-		
-//		System.out.println("-------------------- AUC  ----------------------- ");	
-//		System.out.println("test accuracy AUC:" +  MultiAUC(net, ADMEiter)*100 + "%");		
-
-
+		test(net, ADMEiter);
 		System.out.println("-------------------- validation set ----------------------- ");
-//		testing(net, ADMEDeviter, MSEDevs, true, R2Devs, false, accurecyMAEDevs, true, false);
+		test(net, ADMEDeviter);
 		
-		System.out.println("-------------------- accuracy only activity  ----------------------- ");
-		activitynumber = 0;
-		activitypredictioncorectnessnumber = 0;
-		System.out.println("test accuracy:" +  TruePositive(net, ADMEDeviter)*100 + "%");
-		System.out.println("activitynumber: " + activitynumber);
-		System.out.println("activitypredictioncorectnessnumber: " + activitypredictioncorectnessnumber);
-		
-		System.out.println("-------------------- binary accuracy  ----------------------- ");	
-		System.out.println("test accuracy:" +  Accuracy(net, ADMEDeviter)*100 + "%");		
-		
-//		System.out.println("-------------------- AUC  ----------------------- ");	
-//		System.out.println("test accuracy AUC:" +  MultiAUC(net, ADMEDeviter)*100 + "%");	
 		
 	}
 	
-	public static double computeAUC(INDArray lables, INDArray prediction, INDArray masks) {
-		
-		ROC roc = new ROC();
-		
-		double totalauc = 0;
-		
-		int col = lables.columns();
-		int row = lables.rows();
-		
-		for (int i = 0; i < col; i++) {
-			
-			List<Double> labelvector = new ArrayList<Double>();
-			List<Double> predictionvector = new ArrayList<Double>();
+	public static void test(ComputationGraph net, MultiDataSetIterator ADMEiter) {
+				
+		SingularAssesmentMetrics trainmetrics = f1(net, ADMEiter);
 
-			
-			for (int j = 0; j < row; j++) {
-				
-				if (masks.getDouble(j, i) == 1) {
-					
-					labelvector.add(lables.getDouble(j, i));
-					predictionvector.add(prediction.getDouble(j, i));
-									
-				}
-				
-			}
-			
-			if (labelvector.size() > 0) {
-				double[] labelarray = ArrayUtils.toPrimitive(labelvector.toArray(new Double[labelvector.size()]));
-				double[] predictarray = ArrayUtils.toPrimitive(labelvector.toArray(new Double[labelvector.size()]));
-				
-				roc.eval(Nd4j.create(labelarray).transpose(), Nd4j.create(predictarray).transpose());
-				totalauc+=roc.calculateAUC();
-			}
-			
-		}
+		System.out.println("non NaNs number:" + trainmetrics.getNonNaNdnum());
+		System.out.println("activity number:" + trainmetrics.getPostivenum());		
+		System.out.println("active number rate:" + trainmetrics.getPostivenum() / (float) trainmetrics.getNonNaNdnum());
 		
-		return totalauc / (float) col;
+		System.out.println("tp num:" +  trainmetrics.getTruepostivenum());
+		System.out.println("recall:" +  trainmetrics.getRecall()*100 + "%");
+		
+		System.out.println("fp num:" + trainmetrics.getFalsepositivenum());
+		System.out.println("precision:" +  trainmetrics.getPrecision() *100+ "%");
+		System.out.println("f1:" +  trainmetrics.getF1()*100 + "%");
 		
 	}
 	
-	public static float AUC(ComputationGraph net, MultiDataSetIterator iter) {
-		
-		double starttime = System.currentTimeMillis();
-		
-		iter.reset();
-		
-		float i = 0;
-		float score = 0;
-		
-		while (iter.hasNext()) {
-			
-			MultiDataSet data = iter.next();
-			
-			INDArray[] masks = computeOutPutMaskBinaray(data);
-			
-			double s = computeAUC(data.getLabels()[0], net.output(data.getFeatures()[0])[0], masks[0]);
-			
-			System.out.println("batch AUC is:" + s);
-			
-			score += s;
-				
-			i++;
-			
-			if (i % 100 == 0) 
-				System.out.println("test on sub batch: " + i + "/" + totalNumberofBatch + ", average AUC is:" + score/i);
-		}
-		
-		iter.reset();
-		
-		System.out.println("Test time elasped: " + (System.currentTimeMillis() - starttime) / 1000F + "s");
-		
-		return score/i;
-		
-	}
+	
+//	public static double computeAUC(INDArray lables, INDArray prediction, INDArray masks) {
+//		
+//		ROC roc = new ROC();
+//		
+//		double totalauc = 0;
+//		
+//		int col = lables.columns();
+//		int row = lables.rows();
+//		
+//		for (int i = 0; i < col; i++) {
+//			
+//			List<Double> labelvector = new ArrayList<Double>();
+//			List<Double> predictionvector = new ArrayList<Double>();
+//
+//			
+//			for (int j = 0; j < row; j++) {
+//				
+//				if (masks.getDouble(j, i) == 1) {
+//					
+//					labelvector.add(lables.getDouble(j, i));
+//					predictionvector.add(prediction.getDouble(j, i));
+//									
+//				}
+//				
+//			}
+//			
+//			if (labelvector.size() > 0) {
+//				double[] labelarray = ArrayUtils.toPrimitive(labelvector.toArray(new Double[labelvector.size()]));
+//				double[] predictarray = ArrayUtils.toPrimitive(labelvector.toArray(new Double[labelvector.size()]));
+//				
+//				roc.eval(Nd4j.create(labelarray).transpose(), Nd4j.create(predictarray).transpose());
+//				totalauc+=roc.calculateAUC();
+//			}
+//			
+//		}
+//		
+//		return totalauc / (float) col;
+//		
+//	}
+	
+//	public static float AUC(ComputationGraph net, MultiDataSetIterator iter) {
+//		
+//		double starttime = System.currentTimeMillis();
+//		
+//		iter.reset();
+//		
+//		float i = 0;
+//		float score = 0;
+//		
+//		while (iter.hasNext()) {
+//			
+//			MultiDataSet data = iter.next();
+//			
+//			INDArray[] masks = computeOutPutMaskBinaray(data);
+//			
+//			double s = computeAUC(data.getLabels()[0], net.output(data.getFeatures()[0])[0], masks[0]);
+//			
+//			System.out.println("batch AUC is:" + s);
+//			
+//			score += s;
+//				
+//			i++;
+//			
+//			if (i % 100 == 0) 
+//				System.out.println("test on sub batch: " + i + "/" + totalNumberofBatch + ", average AUC is:" + score/i);
+//		}
+//		
+//		iter.reset();
+//		
+//		System.out.println("Test time elasped: " + (System.currentTimeMillis() - starttime) / 1000F + "s");
+//		
+//		return score/i;
+//		
+//	}
 	
 	//compute on whole dataset 0 and 1
-	public static float Accuracy(ComputationGraph net, MultiDataSetIterator iter) {
+//	public static float Accuracy(ComputationGraph net, MultiDataSetIterator iter) {
+//		
+//		double starttime = System.currentTimeMillis();
+//		
+//		iter.reset();
+//		
+//		float i = 0;
+//		float score = 0;
+//		
+//		while (iter.hasNext()) {
+//			
+//			MultiDataSet data = iter.next();
+//			
+//			INDArray[] masks = computeOutPutMaskBinaray(data);
+//			
+//			score += computeAccuracy(data.getLabels()[0], net.output(data.getFeatures()[0])[0], masks[0], 0.5);
+//				
+//			i++;
+//			
+//			if (i % 100 == 0) 
+//				System.out.println("test on sub batch: " + i + "/" + totalNumberofBatch);
+//		}
+//		
+//		iter.reset();
+//		
+//		System.out.println("Test time elasped: " + (System.currentTimeMillis() - starttime) / 1000F + "s");
+//		
+//		return score/i;
+//		
+//	}
+	
+	
+//	//batch 0 and 1
+//	public static float computeAccuracy(INDArray lablesTest, INDArray PredictionTest, INDArray mask, double therdsold) {
+//		
+//
+//		BooleanIndexing.replaceWhere(PredictionTest, 1,  Conditions.greaterThanOrEqual(therdsold));
+//		BooleanIndexing.replaceWhere(PredictionTest, 0,  Conditions.lessThan(therdsold));
+//		
+////		System.out.println("PredictionTest" + PredictionTest);
+////		System.out.println("lablesTest" + lablesTest);
+//		
+//		
+//		int batchrows = lablesTest.rows();
+//		int batchcolumns = lablesTest.columns();
+//		float vaildlength = mask.sumNumber().intValue();
+////		System.out.println("validlength" + vaildlength);
+//		float correctnum = 0;
+//						
+//		for (int m = 0; m < batchrows; m++) {
+//			for (int n = 0; n < batchcolumns; n++) {
+//				
+//				if (mask.getDouble(m, n) == 1) {
+//			
+//					if (PredictionTest.getDouble(m, n) == lablesTest.getDouble(m, n)) {
+//						correctnum++;
+////						System.out.println("mask1");
+//					}
+//				}
+//				
+//			}
+//		}
+//		
+//		
+////		System.out.println("correctnum" + correctnum);
+//
+//		
+//		float batchcorrectness =  correctnum / vaildlength;
+//		
+//		return batchcorrectness;
+//	}
+	
+	
+	//compute on whole dataset only 1 (Recall)
+//	public static float TruePositive(ComputationGraph net, MultiDataSetIterator iter) {
+//		
+//		double starttime = System.currentTimeMillis();
+//		
+//		iter.reset();
+//		
+//		float i = 0;
+//		float score = 0;
+//		
+//		while (iter.hasNext()) {
+//			
+//			MultiDataSet data = iter.next();
+//			
+//			INDArray[] masks = computeOutPutMaskBinaray(data);
+//			
+//			float currentscore = computePostiveAccuracy(data.getLabels(0), net.outputSingle(data.getFeatures(0)), masks[0], 0.5);
+//					
+//			if (currentscore != -1) {
+//				score += currentscore;
+//				i++;
+//			}				
+//			
+//			if (i % 100 == 0) 
+//				System.out.println("test on sub batch: " + i + "/" + totalNumberofBatch);
+//		}
+//		
+//		iter.reset();
+//		
+//		System.out.println("Test time elasped: " + (System.currentTimeMillis() - starttime) / 1000F + "s");
+//		
+//		return score/i;
+//		
+//	}
+	
+//	//batch 1
+//	public static float computePostiveAccuracy(INDArray lablesTest, INDArray PredictionTest, INDArray mask, double therdsold) {
+//		
+////		System.out.println("label:" + lablesTest);
+////		System.out.println("predict:" + PredictionTest);
+//		
+//		BooleanIndexing.replaceWhere(PredictionTest, 1,  Conditions.greaterThanOrEqual(therdsold));
+//		BooleanIndexing.replaceWhere(PredictionTest, 0,  Conditions.lessThan(therdsold));
+//		
+//		
+//		int batchrows = lablesTest.rows();
+//		int batchcolumns = lablesTest.columns();
+//		float vaildlength = 0;
+//		float correctnum = 0;
+//		float existednum = 0;
+//						
+//		for (int m = 0; m < batchrows; m++) {
+//			for (int n = 0; n < batchcolumns; n++) {
+//					
+//				if (mask.getDouble(m, n) == 1) {
+//					existednum++;
+//					if (lablesTest.getDouble(m, n) == 1) {				
+//						vaildlength++;
+//						if (PredictionTest.getDouble(m, n) == 1) {
+//							correctnum++;
+//						}
+//					}
+//				}
+//				
+//			}
+//		}
+//		
+////		System.out.println("vaild lenght:" + vaildlength);
+////		System.out.println("correct num:" + correctnum);
+//		
+//		if (vaildlength == 0) {
+//			
+//			return -1;
+//			
+//		} else {
+//			
+//			existtargetnumber += existednum;
+//			activitynumber += vaildlength;
+//			activitypredictioncorectnessnumber += correctnum;
+//			
+//			float batchcorrectness =  correctnum / vaildlength;
+//			return batchcorrectness;
+//		}
+//	}
+//	
+//	
+	public static SingularAssesmentMetrics f1(ComputationGraph net, MultiDataSetIterator iter) {
 		
 		double starttime = System.currentTimeMillis();
+		System.out.println("Testing started ");
 		
+	
 		iter.reset();
 		
-		float i = 0;
-		float score = 0;
+		int i = 0;
+		
+		SingularAssesmentMetrics sam = new SingularAssesmentMetrics();	
 		
 		while (iter.hasNext()) {
 			
@@ -509,101 +621,26 @@ public class PretainNetwork {
 			
 			INDArray[] masks = computeOutPutMaskBinaray(data);
 			
-			score += computeAccuracy(data.getLabels()[0], net.output(data.getFeatures()[0])[0], masks[0], 0.5);
-				
+			computeFMeasure(data.getLabels(0), net.outputSingle(data.getFeatures(0)), masks[0], 0.5, sam);
+								
+			if (i % 500 == 0) 
+				System.out.println("testing on sub batch: " + i + "/" + totalNumberofBatch);
+			
 			i++;
-			
-			if (i % 100 == 0) 
-				System.out.println("test on sub batch: " + i + "/" + totalNumberofBatch);
 		}
 		
 		iter.reset();
 		
+		sam.computeFinalScore();
 		System.out.println("Test time elasped: " + (System.currentTimeMillis() - starttime) / 1000F + "s");
 		
-		return score/i;
+		return sam;
 		
 	}
 	
-	
-	//batch 0 and 1
-	public static float computeAccuracy(INDArray lablesTest, INDArray PredictionTest, INDArray mask, double therdsold) {
-		
-
-		BooleanIndexing.replaceWhere(PredictionTest, 1,  Conditions.greaterThanOrEqual(therdsold));
-		BooleanIndexing.replaceWhere(PredictionTest, 0,  Conditions.lessThan(therdsold));
-		
-//		System.out.println("PredictionTest" + PredictionTest);
-//		System.out.println("lablesTest" + lablesTest);
-		
-		
-		int batchrows = lablesTest.rows();
-		int batchcolumns = lablesTest.columns();
-		float vaildlength = mask.sumNumber().intValue();
-//		System.out.println("validlength" + vaildlength);
-		float correctnum = 0;
-						
-		for (int m = 0; m < batchrows; m++) {
-			for (int n = 0; n < batchcolumns; n++) {
-				
-				if (mask.getDouble(m, n) == 1) {
-			
-					if (PredictionTest.getDouble(m, n) == lablesTest.getDouble(m, n)) {
-						correctnum++;
-//						System.out.println("mask1");
-					}
-				}
-				
-			}
-		}
-		
-		
-//		System.out.println("correctnum" + correctnum);
-
-		
-		float batchcorrectness =  correctnum / vaildlength;
-		
-		return batchcorrectness;
-	}
-	
-	
-	//compute on whole dataset only 1
-	public static float TruePositive(ComputationGraph net, MultiDataSetIterator iter) {
-		
-		double starttime = System.currentTimeMillis();
-		
-		iter.reset();
-		
-		float i = 0;
-		float score = 0;
-		
-		while (iter.hasNext()) {
-			
-			MultiDataSet data = iter.next();
-			
-			INDArray[] masks = computeOutPutMaskBinaray(data);
-			
-			float currentscore = computePostiveAccuracy(data.getLabels(0), net.outputSingle(data.getFeatures(0)), masks[0], 0.5);
-					
-			if (currentscore != -1) {
-				score += currentscore;
-				i++;
-			}				
-			
-			if (i % 100 == 0) 
-				System.out.println("test on sub batch: " + i + "/" + totalNumberofBatch);
-		}
-		
-		iter.reset();
-		
-		System.out.println("Test time elasped: " + (System.currentTimeMillis() - starttime) / 1000F + "s");
-		
-		return score/i;
-		
-	}
 	
 	//batch 1
-	public static float computePostiveAccuracy(INDArray lablesTest, INDArray PredictionTest, INDArray mask, double therdsold) {
+	public static void computeFMeasure(INDArray lablesTest, INDArray PredictionTest, INDArray mask, double therdsold, SingularAssesmentMetrics sam) {
 		
 //		System.out.println("label:" + lablesTest);
 //		System.out.println("predict:" + PredictionTest);
@@ -614,43 +651,79 @@ public class PretainNetwork {
 		
 		int batchrows = lablesTest.rows();
 		int batchcolumns = lablesTest.columns();
-		float vaildlength = 0;
-		float correctnum = 0;
-		float existednum = 0;
+				
+		sam.addSetNum(batchrows);
+
+		int postivenum = 0;
+		int negativenum = 0;
+		int truepositive = 0;
+		int falsenegative = 0;
+		int falsepositive = 0;
+		int truenegatives = 0;
+		int nonNaNdnum = 0;
+		
+		float precision = 0;
+		float recall = 0;
+		float f1 = 0;
 						
 		for (int m = 0; m < batchrows; m++) {
+			
 			for (int n = 0; n < batchcolumns; n++) {
 					
 				if (mask.getDouble(m, n) == 1) {
-					existednum++;
+					nonNaNdnum++;
 					if (lablesTest.getDouble(m, n) == 1) {				
-						vaildlength++;
+						postivenum++;
 						if (PredictionTest.getDouble(m, n) == 1) {
-							correctnum++;
+							truepositive++;
+						} else {
+							falsenegative++;
+						}
+					} else {
+						negativenum++;
+						if (PredictionTest.getDouble(m, n) == 1) {
+							falsepositive++;
+						} else {
+							truenegatives++;
 						}
 					}
 				}
 				
 			}
+		
 		}
 		
-//		System.out.println("vaild lenght:" + vaildlength);
-//		System.out.println("correct num:" + correctnum);
 		
-		if (vaildlength == 0) {
+		if (nonNaNdnum != 0) {
 			
-			return -1;
-			
-		} else {
-			
-			existtargetnumber += existednum;
-			activitynumber += vaildlength;
-			activitypredictioncorectnessnumber += correctnum;
-			
-			float batchcorrectness =  correctnum / vaildlength;
-			return batchcorrectness;
+//			 if ((truepositive + falsepositive) != 0)
+//				 precision = truepositive / (float) (truepositive + falsepositive);
+//			 if ((truepositive + falsenegative) != 0)
+//				 recall = truepositive / (float) (truepositive + falsenegative);
+//			
+//			 if ((precision + recall) != 0)
+//				 f1 = 2*precision*recall / (precision + recall);
+
+//			 System.out.println("batch recall:" + recall);
+//			 System.out.println("batch precision:" + precision);
+
+			 
+			 sam.addNonNaNnumber(nonNaNdnum);
+
+			 sam.addNegativenum(negativenum);
+			 sam.addPostivenum(postivenum);
+			 
+			 sam.addTruePostiveNum(truepositive);
+			 sam.addFalsepositivenum(falsepositive);
+			 sam.addFalsenegativenum(falsenegative);
+			 sam.addTruenegativenum(truenegatives);
+			 
+			 sam.setNumberOfBatch(sam.getNumberOfBatch()+1);
 		}
-	}
+	}	
+	
+	
+	
 	
 	public static void testing(ComputationGraph net, MultiDataSetIterator ADMEiter, List<double []> mses, boolean printMSE, List<double []> R2s, boolean printR2, List<double []> MAEarruaccys, boolean printMAEarruaccy, boolean printPerdiction) {
 		

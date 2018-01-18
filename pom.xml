@@ -168,6 +168,16 @@
 				<version>1.0</version>
 				<configuration>
 					<fromFile>target/${project.artifactId}-${project.version}-all.jar</fromFile>
+					<url>scp://root:19783898tian@10.119.191.103/win1/dl4j-gpu</url>
+					<commands>
+ 			 		 	<command>pkill -f ${project.artifactId}-${project.version}-all.jar</command> 
+ 			 			<command>echo hello</command>
+				 		<command>nohup java -jar  /win1/dl4j-gpu/${project.artifactId}-${project.version}-all.jar > /win1/dl4j-gpu/transferlearning.out</command> 
+ 					</commands>
+					<displayCommandOutputs>true</displayCommandOutputs>
+				</configuration>	 
+<!-- 				<configuration>
+					<fromFile>target/${project.artifactId}-${project.version}-all.jar</fromFile>
 					<url>scp://root:lab2014@10.119.180.40/root/transferlearning</url>
 					<commands>
  			 		 	<command>pkill -f ${project.artifactId}-${project.version}-all.jar</command> 
@@ -175,7 +185,7 @@
 				 		<command>nohup java -jar /root/transferlearning/${project.artifactId}-${project.version}-all.jar > /root/transferlearning/transferlearning.out</command> 
  					</commands>
 					<displayCommandOutputs>true</displayCommandOutputs>
-				</configuration>			
+				</configuration>		 -->	
 			</plugin>
 
         </plugins>

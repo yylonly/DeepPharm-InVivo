@@ -95,12 +95,37 @@ public class WeightedL2Loss extends LossL2 {
             
         }
         
+        int r = labels.rows();
+        int c = labels.columns();
+        int masknum = 0;
+        int labelp = 0;
+        
+        // compute weight
+        for (int i = 0; i < r; i++) {
+        	
+    			for (int j = 0; j < c; j++) {
+    				
+    				if (mask.getDouble(i, j) == 1) {
+    					masknum++;
+    					if (labels.getDouble(i, j) == 1)
+    						labelp++;
+        			}
+    				
+    			}
+        }
+        
+        double tp = labelp / (double ) masknum;
+        double weight = 1 / tp;
+        
+//        System.out.println("rate: " + weight);
+        
         INDArray output = activationFn.getActivation(preOutput.dup(), true);
 
         INDArray dLda = output.subi(labels).muli(2);
         
-        int r = labels.rows();
-        int c = labels.columns();
+        
+        
+        //apply weight to cost
         for (int i = 0; i < r; i++) {
         		for (int j = 0; j < c; j++) {
         			
@@ -111,7 +136,7 @@ public class WeightedL2Loss extends LossL2 {
         				
 //        				System.out.println("before: " + dLda.getDouble(i, j));
         				if (labels.getDouble(i, j) == 1)
-        					dLda.put(i, j, dLda.getDouble(i, j) * 100);
+        					dLda.put(i, j, dLda.getDouble(i, j) * 71.42);
         				
 //        				if (labels.getDouble(i, j) == 0 && output.getDouble(i, j) > 0)
 //        					dLda.put(i, j, dLda.getDouble(i, j) * 100);

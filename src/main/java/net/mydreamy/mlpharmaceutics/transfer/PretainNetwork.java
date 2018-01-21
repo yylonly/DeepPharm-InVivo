@@ -90,7 +90,7 @@ import javafx.application.Application;
  */
 public class PretainNetwork {
 	
-	static int epoch = 1;
+	static int epoch = 6;
 	static int trainsetsize = 432803;
 	static int batchSize = 200;
 	static int totalNumberofBatch = trainsetsize / batchSize;

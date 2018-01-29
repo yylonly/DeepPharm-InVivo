@@ -88,7 +88,7 @@ import javafx.application.Application;
  * 
  *
  */
-public class PretainNetwork {
+public class TestPretrainNetwork {
 	
 	static int epoch = 1;
 	static int trainsetsize = 432803;
@@ -174,178 +174,21 @@ public class PretainNetwork {
 				        .build();		
 		
 				
-		//final network
-		ComputationGraphConfiguration conf = new NeuralNetConfiguration.Builder() //create global builder 
-				
-				//workspaceMode
-				.trainingWorkspaceMode(WorkspaceMode.SINGLE)
-				.inferenceWorkspaceMode(WorkspaceMode.SINGLE)
-				
-				//flowing method set attribute then return this object
-				.seed(123456)
-	            .learningRate(learningrate)
-//	            .learningRateDecayPolicy(LearningRatePolicy.Exponential)
-//	            .lrPolicyDecayRate(decayRate)
-	            .updater(Updater.ADAM)           
-                .weightInit(WeightInit.XAVIER)
-//                .regularization(true)
-//                .l2(lambd)
-		        .graphBuilder()  //create GraphBuilder with global builder 
-				       
-		        
-		        .addInputs("INPUT") //set input layers
-		        .setOutputs("TASKS") //set output layers
-		        
-		        //nIn nOut at DenseLayer.Builder(), activation in BaseLayer.Builder() << abstract Layer.Builder() (dropout here)
-		        .addLayer("L1", new DenseLayer.Builder().activation(Activation.TANH).nIn(1024).nOut(1000).build(), "INPUT")
-		        .addLayer("L2", new DenseLayer.Builder().activation(Activation.TANH).nIn(1000).nOut(900).build(), "L1")
-		        .addLayer("L3", new DenseLayer.Builder().activation(Activation.TANH).nIn(900).nOut(800).build(), "L2")
-		        .addLayer("L4", new DenseLayer.Builder().activation(Activation.TANH).nIn(800).nOut(700).build(), "L3")
-		        .addLayer("M1", new DenseLayer.Builder().activation(Activation.TANH).nIn(700).nOut(600).build(), "L4")
-		        .addLayer("M2", new DenseLayer.Builder().activation(Activation.TANH).nIn(600).nOut(500).build(), "M1")
-		        .addLayer("M3", new DenseLayer.Builder().activation(Activation.TANH).nIn(500).nOut(400).build(), "M2")
-		        .addLayer("M4", new DenseLayer.Builder().activation(Activation.TANH).nIn(400).nOut(300).build(), "M3")
-		        .addLayer("M5", new DenseLayer.Builder().activation(Activation.TANH).nIn(300).nOut(200).build(), "M4")	       
-		        .addLayer("FEATURE", new DenseLayer.Builder().activation(Activation.TANH).nIn(200).nOut(100).build(), "M5")
-		        .addLayer("HIDDEN", new DenseLayer.Builder().activation(Activation.TANH).nIn(100).nOut(1000).build(), "FEATURE")
-
-		        .addLayer("TASKS", new OutputLayer.Builder().activation(Activation.SIGMOID)
-		                .lossFunction(new WeightedL2Loss(1))
-		                .nIn(1000).nOut(157).build(), "HIDDEN")
-		      
-
-		        .backprop(true)
-		        .build();  //use set all parameters and global configuration to create a object of ComputationGraphConfiguration
-		
-		ComputationGraph net = new ComputationGraph(conf);
-
-		
-		net.init();
-		
-		
-
-		
-		System.out.println("-------------------- training ADME ----------------------- ");
-		
-		System.out.println("Epoches:" + epoch);
-		
-		for (int i = 0; i < epoch; i++) {
-		
-			int numberOfBatchSize = 1;
-			MultiDataSet data = null;
-			double epochTime = 0;
-			double subEpochTime = 0;
-			double subloadingtime = 0;
-			double submaskingtime = 0;
-			double subacc = 0;
-			double subcount = 0;
-//			SingularAssesmentMetrics s = new SingularAssesmentMetrics();
-			
-			while (ADMEiter.hasNext()) {
-				
-				
-				//data loading
-				long substart = System.currentTimeMillis();
-				data = ADMEiter.next();
-				double loadingtime =  ((double) System.currentTimeMillis() - substart);
-				subloadingtime+=loadingtime;
- 				
-				
-				//apply label mask
-				substart = System.currentTimeMillis();
-				INDArray[] masks = computeOutPutMaskBinaray(data);
-				data.setLabelsMaskArray(masks);	
-				double maskingtime =  ((double) System.currentTimeMillis() - substart);
-				submaskingtime+=maskingtime;
-				
-				
-				//fit data
-				substart = System.currentTimeMillis();
-				net.fit(data);
-	
-				double traintime =  ((double) System.currentTimeMillis() - substart);
-				epochTime += loadingtime+maskingtime+traintime;
-				subEpochTime += loadingtime+maskingtime+traintime;						
-				
-//				computeFMeasure(data.getLabels(0), data.getFeatures(0), masks[0], 0.5, s);			
-				
-				if (numberOfBatchSize % 50 == 0) {
-					
-//					System.out.println("precision:" + s.getPrecision());
-//					System.out.println("postive num:" + s.getPostivenum());
-//					System.out.println("tp num:" + s.getTruepostivenum());
-//					System.out.println("fp num:" + s.getFalsepositivenum());
-//					s.computeFinalScore();
-					
-//					System.out.println("epoch:" + i + ", batch number:" + numberOfBatchSize + "/" + totalNumberofBatch + ", 50 loadding time:" + subloadingtime + " ms, masking time:"+ 
-//								submaskingtime + " ms, training time:" + String.format("%.2f", subEpochTime) + " ms" + ", time elaspe:" +  
-//								String.format("%.2f", epochTime/1000F) + " s" + ", error: " + net.score() + ", recall:" + s.getRecall());
-					
-					System.out.println("epoch:" + i + ", batch number:" + numberOfBatchSize + "/" + totalNumberofBatch + ", 50 loadding time:" + subloadingtime + " ms, masking time:"+ 
-							submaskingtime + " ms, training time:" + String.format("%.2f", subEpochTime) + " ms" + ", time elaspe:" +  
-							String.format("%.2f", epochTime/1000F) + " s" + ", error: " + net.score());
-					
-					subEpochTime = 0;
-					subloadingtime = 0;
-					submaskingtime = 0;
-					
-//					s = new SingularAssesmentMetrics();
-				}
-				
-				numberOfBatchSize++;
-
-			}
-			
-			ADMEiter.reset();
-			
-			System.out.println("Epoch Time: " + epochTime/(60*1000F) + "min");
-			epochTime = 0;
-			subEpochTime = 0;
-			
-			//evalute every 10 epochs
-			if (i % 5 == 0) {				
-				
-				System.out.println("-------------------- tranning set ----------------------- ");
-				test(net, ADMEiter);
-				System.out.println("-------------------- validation set ----------------------- ");
-				test(net, ADMEDeviter);
-				
-			}
-		}		
-	
-		//Net Configuration Summary
-		System.out.println(net.summary());
-		System.out.println("batchsize:" + batchSize);
-		System.out.println("learning rate:" + learningrate);
-		System.out.println("total epoch: " + epoch);
-		System.out.println("beta1: " + beta1);
-		System.out.println("beta2: " + beta2);
-		System.out.println("lambda :" + lambd); 
-		
-		
-        File locationToSave = new File("DeepPharm.zip");       //Where to save the network. Note: the file is in .zip format - can be opened externally
-        boolean saveUpdater = true;                                             //Updater: i.e., the state for Momentum, RMSProp, Adagrad etc. Save this if you want to train your network more in the future
+        //Load the model
         try {
-			ModelSerializer.writeModel(net, locationToSave, saveUpdater);
-		} catch (IOException e) {
+			ComputationGraph restored = ModelSerializer.restoreComputationGraph("DeepPharm.zip");
+		
+		
+			System.out.println("-------------------- final testing ADME ----------------------- ");
+			System.out.println("-------------------- tranning set ----------------------- ");
+			test(restored, ADMEiter);
+			System.out.println("-------------------- validation set ----------------------- ");
+			test(restored, ADMEDeviter);
+		
+    	} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-        
-//        //Load the model
-//        try {
-//			ComputationGraph restored = ModelSerializer.restoreComputationGraph(locationToSave);
-//		} catch (IOException e) {
-//			// TODO Auto-generated catch block
-//			e.printStackTrace();
-//		}
-		
-		
-		System.out.println("-------------------- final testing ADME ----------------------- ");
-		System.out.println("-------------------- tranning set ----------------------- ");
-		test(net, ADMEiter);
-		System.out.println("-------------------- validation set ----------------------- ");
-		test(net, ADMEDeviter);
 		
 		
 	}

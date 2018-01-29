@@ -8,8 +8,12 @@ import org.nd4j.linalg.lossfunctions.LossUtil;
 import org.nd4j.linalg.lossfunctions.impl.LossL1;
 import org.nd4j.linalg.lossfunctions.impl.LossL2;
 
-public class WeightedL2Loss extends LossL2 {
+public class WeightedL2Loss extends LossL2 implements org.nd4j.linalg.lossfunctions.ILossFunction {
 	
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = 1L;
 	private double outputweight;
 	
 	
@@ -136,9 +140,11 @@ public class WeightedL2Loss extends LossL2 {
         				
 //        				System.out.println("before: " + dLda.getDouble(i, j));
         				if (labels.getDouble(i, j) == 1)
-        					dLda.put(i, j, dLda.getDouble(i, j) * 71.42);
+        					dLda.put(i, j, dLda.getDouble(i, j) * weight);
+
+//        					dLda.put(i, j, dLda.getDouble(i, j) * 71.42);
         				
-//        				if (labels.getDouble(i, j) == 0 && output.getDouble(i, j) > 0)
+//        				if (labels.getDouble(i, j) == 0 && output.getDouble(i, j) > 0.5)
 //        					dLda.put(i, j, dLda.getDouble(i, j) * 100);
         				
 //        				System.out.println("after: " + dLda.getDouble(i, j));

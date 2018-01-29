@@ -79,6 +79,7 @@ import org.nd4j.linalg.util.ArrayUtil;
 import javafx.application.Application;
 
 
+
 /**
  * 
  * @author Yilong
@@ -88,7 +89,7 @@ import javafx.application.Application;
  * 
  *
  */
-public class PretainNetwork {
+public class PretainNetworkandTransfer {
 	
 	static int epoch = 1;
 	static int trainsetsize = 432803;
@@ -127,10 +128,10 @@ public class PretainNetwork {
 		int numLinesToSkip = 0;
 		
 		//ADME reader
-		RecordReader ADME = new CSVRecordReader(numLinesToSkip,',');
+		RecordReader Screen = new CSVRecordReader(numLinesToSkip,',');
 		
 		try {
-			ADME.initialize(new FileSplit(new File(args[0])));
+			Screen.initialize(new FileSplit(new File(args[0])));
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -140,9 +141,9 @@ public class PretainNetwork {
 		}
 		
 		
-		MultiDataSetIterator ADMEiter = new RecordReaderMultiDataSetIterator.Builder(batchSize)
+		MultiDataSetIterator Screeniter = new RecordReaderMultiDataSetIterator.Builder(batchSize)
 			
-		        .addReader("adme", ADME)
+		        .addReader("adme", Screen)
 		        .addInput("adme", 0, 1023)  //1024 finger prints
 		        .addOutput("adme", 1024, 1024+157-1) //157 tasks
 //		        .addOutput("adme", 1024, 1024+10-1) //157 tasks
@@ -152,10 +153,10 @@ public class PretainNetwork {
 		
 
 		//TestReader
-		RecordReader ADMEdev = new CSVRecordReader(numLinesToSkip, ',');
+		RecordReader Screendev = new CSVRecordReader(numLinesToSkip, ',');
 				
 		try {
-			ADMEdev.initialize(new FileSplit(new File(args[1])));
+			Screendev.initialize(new FileSplit(new File(args[1])));
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -164,9 +165,9 @@ public class PretainNetwork {
 			e.printStackTrace();
 		}
 						
-		MultiDataSetIterator ADMEDeviter = new RecordReaderMultiDataSetIterator.Builder(batchSize)
+		MultiDataSetIterator ScreenDeviter = new RecordReaderMultiDataSetIterator.Builder(batchSize)
 					
-				     	.addReader("adme", ADMEdev)
+				     	.addReader("adme", Screendev)
 				        .addInput("adme", 0, 1023)  //1024 finger prints
 				        .addOutput("adme", 1024, 1024+157-1) //157 tasks
 //				        .addOutput("adme", 1024, 1024) //157 tasks
@@ -241,12 +242,13 @@ public class PretainNetwork {
 			double subcount = 0;
 //			SingularAssesmentMetrics s = new SingularAssesmentMetrics();
 			
-			while (ADMEiter.hasNext()) {
+			while (Screeniter.hasNext()) {
+	
 				
 				
 				//data loading
 				long substart = System.currentTimeMillis();
-				data = ADMEiter.next();
+				data = Screeniter.next();
 				double loadingtime =  ((double) System.currentTimeMillis() - substart);
 				subloadingtime+=loadingtime;
  				
@@ -294,23 +296,25 @@ public class PretainNetwork {
 				
 				numberOfBatchSize++;
 
+				
+//				break;
 			}
 			
-			ADMEiter.reset();
+			Screeniter.reset();
 			
 			System.out.println("Epoch Time: " + epochTime/(60*1000F) + "min");
 			epochTime = 0;
 			subEpochTime = 0;
 			
-			//evalute every 10 epochs
-			if (i % 5 == 0) {				
-				
-				System.out.println("-------------------- tranning set ----------------------- ");
-				test(net, ADMEiter);
-				System.out.println("-------------------- validation set ----------------------- ");
-				test(net, ADMEDeviter);
-				
-			}
+//			//evalute every 10 epochs
+//			if (i % 5 == 0) {				
+//				
+//				System.out.println("-------------------- tranning set ----------------------- ");
+//				test(net, ADMEiter);
+//				System.out.println("-------------------- validation set ----------------------- ");
+//				test(net, ADMEDeviter);
+//				
+//			}
 		}		
 	
 		//Net Configuration Summary
@@ -323,14 +327,14 @@ public class PretainNetwork {
 		System.out.println("lambda :" + lambd); 
 		
 		
-        File locationToSave = new File("DeepPharm.zip");       //Where to save the network. Note: the file is in .zip format - can be opened externally
-        boolean saveUpdater = true;                                             //Updater: i.e., the state for Momentum, RMSProp, Adagrad etc. Save this if you want to train your network more in the future
-        try {
-			ModelSerializer.writeModel(net, locationToSave, saveUpdater);
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
+//        File locationToSave = new File("DeepPharm.zip");       //Where to save the network. Note: the file is in .zip format - can be opened externally
+//        boolean saveUpdater = true;                                             //Updater: i.e., the state for Momentum, RMSProp, Adagrad etc. Save this if you want to train your network more in the future
+//        try {
+//			ModelSerializer.writeModel(net, locationToSave, saveUpdater);
+//		} catch (IOException e) {
+//			// TODO Auto-generated catch block
+//			e.printStackTrace();
+//		}
         
 //        //Load the model
 //        try {
@@ -341,14 +345,363 @@ public class PretainNetwork {
 //		}
 		
 		
+//		System.out.println("-------------------- final testing ADME ----------------------- ");
+//		System.out.println("-------------------- tranning set ----------------------- ");
+//		test(net, ADMEiter);
+//		System.out.println("-------------------- validation set ----------------------- ");
+//		test(net, ADMEDeviter);
+		
+		
+		//==============  AMDE data ==============
+		System.out.println("================== Tranfer to new network ================");
+		String fileDelimiter = ",";
+		numLinesToSkip = 1;
+		
+		//ADME reader
+		RecordReader ADME = new CSVRecordReader(numLinesToSkip,fileDelimiter);
+		
+		String ADMEPath = "src/main/resources/ADME/trainingset.csv";
+		try {
+			ADME.initialize(new FileSplit(new File(ADMEPath)));
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (InterruptedException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
+		
+		MultiDataSetIterator ADMEiter = new RecordReaderMultiDataSetIterator.Builder(batchSize)
+			
+		        .addReader("adme", ADME)
+		        .addInput("adme", 8, 1031)  //finger prints
+//		        .addOutput("adme", 1034, 1037)
+		        .addOutput("adme", 1032, 1032) //Bioavailability
+		        .addOutput("adme", 1033, 1033) //Blood Protein Binding
+		        .addOutput("adme", 1034, 1034) //Half Life
+		        .addOutput("adme", 1035, 1035) //Volume of Distribution
+		        .build();
+
+		//TestReader
+		RecordReader ADMEdev = new CSVRecordReader(numLinesToSkip,fileDelimiter);
+				
+		String ADMEdevPath = "src/main/resources/ADME/validationset.csv";
+		try {
+			ADMEdev.initialize(new FileSplit(new File(ADMEdevPath)));
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (InterruptedException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+						
+		MultiDataSetIterator ADMEDeviter = new RecordReaderMultiDataSetIterator.Builder(batchSize)
+					
+				     	.addReader("adme", ADMEdev)
+				        .addInput("adme", 8, 1031)  //finger prints
+//				        .addOutput("adme", 1034, 1037)
+				        .addOutput("adme", 1032, 1032) //Bioavailability
+				        .addOutput("adme", 1033, 1033) //Blood Protein Binding
+				        .addOutput("adme", 1034, 1034) //Half Life
+				        .addOutput("adme", 1035, 1035) //Volume of Distribution
+				        .build();		
+		
+
+		//TestReader
+		RecordReader ADMEtest = new CSVRecordReader(numLinesToSkip,fileDelimiter);
+				
+		String ADMETestPath = "src/main/resources/ADME/testingset.csv";
+		try {
+			ADMEtest.initialize(new FileSplit(new File(ADMETestPath)));
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (InterruptedException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+						
+		MultiDataSetIterator ADMETestiter = new RecordReaderMultiDataSetIterator.Builder(batchSize)
+					
+				     	.addReader("adme", ADMEtest)
+				        .addInput("adme", 8, 1031)  //finger prints
+//				        .addOutput("adme", 1034, 1037)
+				        .addOutput("adme", 1032, 1032) //Bioavailability
+				        .addOutput("adme", 1033, 1033) //Blood Protein Binding
+				        .addOutput("adme", 1034, 1034) //Half Life
+				        .addOutput("adme", 1035, 1035) //Volume of Distribution
+				        .build();
+
+		
+		
+		
+		//transfered networked
+		int epoch = 100;
+		int batchSize = 1000;
+		double learningrate = 0.03;
+		double lambd = 0.01;
+		double beta1 = 0.5;
+		double beta2 = 0.999;
+		
+	    FineTuneConfiguration fineTuneConf = new FineTuneConfiguration.Builder()
+				.seed(123456)
+	            .learningRate(learningrate)
+	            .updater(Updater.ADAM)
+	            .adamMeanDecay(beta1)
+	            .adamVarDecay(beta2)	            
+                .weightInit(WeightInit.XAVIER)
+                .regularization(true)
+                .l1(lambd)
+	               .build();
+
+	    
+		//network for ADME
+		ComputationGraph ADMEnet = new TransferLearning.GraphBuilder(net)
+	            .fineTuneConfiguration(fineTuneConf)
+//	            .setFeatureExtractor("FEATURE")
+	            .removeVertexAndConnections("HIDDEN")
+	            .removeVertexAndConnections("TASKS")
+	            .addLayer("MOUT1", new DenseLayer.Builder().activation(Activation.TANH).nIn(100).nOut(100).build(), "FEATURE")
+	            .addLayer("MOUT2", new DenseLayer.Builder().activation(Activation.TANH).nIn(100).nOut(1000).build(), "FEATURE")
+
+
+		        .addLayer("Bioavailability", new OutputLayer.Builder().activation(Activation.SIGMOID)
+		                .lossFunction(new WeightedL1LossADME(3))
+		                .nIn(1000).nOut(1).build(), "MOUT2")
+		        .addLayer("BloodProteinBinding", new OutputLayer.Builder().activation(Activation.SIGMOID)
+		                .lossFunction(new WeightedL1LossADME(1))
+		                .nIn(1000).nOut(1).build(), "MOUT2")
+		        .addLayer("HalfLife", new OutputLayer.Builder().activation(Activation.SIGMOID)
+		                .lossFunction(new WeightedL1LossADME(1))
+		                .nIn(100).nOut(1).build(), "MOUT1")
+		        .addLayer("VolumeofDistribution", new OutputLayer.Builder().activation(Activation.SIGMOID)
+		                .lossFunction(new WeightedL1LossADME(9))
+		                .nIn(100).nOut(1).build(), "MOUT1") 
+		        
+		        .setOutputs("Bioavailability","BloodProteinBinding", "HalfLife", "VolumeofDistribution")
+	            .build();	
+		
+		System.out.println(ADMEnet.summary());
+
+		
+		System.out.println("-------------------- training ADME ----------------------- ");
+		
+		//cache for all errors
+		List<double []> MSEs = new LinkedList<double []>();
+		List<double []> MSEDevs = new LinkedList<double []>();
+		List<double []> MSETs = new LinkedList<double []>();
+	
+		List<double []> R2s = new LinkedList<double []>();
+		List<double []> R2Devs = new LinkedList<double []>();
+		List<double []> R2Ts = new LinkedList<double []>();
+
+		
+		List<double []> accurecyMAEs = new LinkedList<double []>();
+		List<double []> accurecyMAEDevs = new LinkedList<double []>();
+		List<double []> accurecyMAETs = new LinkedList<double []>();
+		
+		for (int i = 0; i < epoch; i++) {
+			
+			MultiDataSet data = null;
+			while (ADMEiter.hasNext()) {
+				
+				data = ADMEiter.next();
+	
+				//apply label mask
+				data.setLabelsMaskArray(computeADMEMask(data));
+						
+				ADMEnet.fit(data);
+				
+
+			}
+			
+			ADMEiter.reset();
+			
+			if (i % 1 == 0) {				
+				System.out.println("-------------------- epoch " + i + "----------------------- ");
+				System.out.println("-------------------- tranning set ----------------------- ");
+				ADMEtesting(ADMEnet, ADMEiter, MSEs, true, R2s, false, accurecyMAEs, true, false);
+	
+				System.out.println("-------------------- validation set ----------------------- ");
+				ADMEtesting(ADMEnet, ADMEDeviter, MSEDevs, true, R2Devs, false, accurecyMAEDevs, true, false);
+		
+				System.out.println("-------------------- testing set ----------------------- ");
+				ADMEtesting(ADMEnet, ADMETestiter, MSETs, true, R2Ts, false, accurecyMAETs, true, false);	
+			}
+		}		
+	
 		System.out.println("-------------------- final testing ADME ----------------------- ");
 		System.out.println("-------------------- tranning set ----------------------- ");
-		test(net, ADMEiter);
+		ADMEtesting(ADMEnet, ADMEiter, MSEs, true, R2s, false, accurecyMAEs, true, false);
+
 		System.out.println("-------------------- validation set ----------------------- ");
-		test(net, ADMEDeviter);
+		ADMEtesting(ADMEnet, ADMEDeviter, MSEDevs, true, R2Devs, false, accurecyMAEDevs, true, false);
+
+		System.out.println("-------------------- testing set ----------------------- ");
+		ADMEtesting(ADMEnet, ADMETestiter, MSETs, true, R2Ts, false, accurecyMAETs, true, false);	
 		
 		
 	}
+	
+	//compute mask array for multi-labels, change NaN of origin data as -1
+	public static INDArray[] computeADMEMask(MultiDataSet data) {
+
+		INDArray[] lables = data.getLabels();
+		
+		//Create Mask Array
+		INDArray[] outputmask = new INDArray[lables.length];
+		
+		for (int j = 0; j < lables.length; j++) {
+
+			outputmask[j] = lables[j].dup();
+		
+			//assign not Nan as 1
+			outputmask[j].divi(outputmask[j]);		
+//			BooleanIndexing.replaceWhere(outputmask[j], 1,  Conditions.greaterThan(-100000));
+
+			//assign NaN as 0
+			Nd4j.clearNans(outputmask[j]);			
+//			BooleanIndexing.replaceWhere(outputmask[j], 0,  Conditions.isNan());
+			
+			//avoiding NaN bug when applying mask array
+//			BooleanIndexing.replaceWhere(lables[j], -1,  Conditions.isNan());
+			Nd4j.getExecutioner().exec(new ReplaceNans(lables[j], -1));
+			
+		}
+		
+		return outputmask;
+		
+	}
+	
+	
+	public static void ADMEtesting(ComputationGraph net, MultiDataSetIterator ADMEiter, List<double []> mses, boolean printMSE, List<double []> R2s, boolean printR2, List<double []> MAEarruaccys, boolean printMAEarruaccy, boolean printPerdiction) {
+		
+		ADMEiter.reset();
+		
+		MultiDataSet data = null;
+		
+		int numOfBatch = 0;
+		double sumR2[] = {0,0,0,0};
+		double sumMAE[] = {0,0,0,0};
+		double sumaccurecyMAE[] = {0,0,0,0};
+		
+		while (ADMEiter.hasNext()) {
+			
+			data = ADMEiter.next();
+			
+			int numlabels = data.numLabelsArrays();
+			
+			//compute mask
+			INDArray[] masks = computeOutPutMask(data);
+	
+			//apply label mask
+			data.setLabelsMaskArray(masks);
+	
+			INDArray[] labels = data.getLabels();
+			INDArray[] predictions = net.output(data.getFeatures(0));
+			
+	
+			
+//			Application.launch(LineChartApp.class, null);
+
+		
+			
+			for (int i = 0; i < numlabels; i++) {
+				
+				if (printPerdiction) {
+					
+					System.out.println("column: " + i);
+					 
+					int length = labels[i].length();
+					
+					System.out.println("label: " + i + " ");
+					for (int j = 0; j < length; j++) {
+
+						if (labels[i].getDouble(j) != -1) {
+							System.out.print("number " + j + ": ");
+							System.out.print(labels[i].getDouble(j) + " ");
+							System.out.println(predictions[i].getDouble(j));
+						}
+							
+
+						
+					}
+				}
+//				System.out.println("mask: " + i + " " + masks[i].toString());
+//				System.out.println("");
+				
+				sumR2[i] += AccuracyRSquare(labels[i], predictions[i], masks[i]);
+				sumMAE[i] += MAE(labels[i], predictions[i], masks[i]);
+				sumaccurecyMAE[i] += AccuracyMAE(labels[i], predictions[i], masks[i], 0.1);
+				
+			}
+
+			numOfBatch++;
+			
+		}
+		
+		//compuate R2 on all batches
+		
+		sumR2[0]/=numOfBatch;
+		sumR2[1]/=numOfBatch;
+		sumR2[2]/=numOfBatch;
+		sumR2[3]/=numOfBatch;
+		
+		R2s.add(sumR2);
+		
+		if (printR2) {
+			
+			System.out.println("================== R squared ==================");
+			System.out.println("R2[0]" +  String.format("%.4f", sumR2[0]/numOfBatch));
+			System.out.println("R2[1]" +  String.format("%.4f", sumR2[1]/numOfBatch));
+			System.out.println("R2[2]" +  String.format("%.4f", sumR2[2]/numOfBatch));
+			System.out.println("R2[3]" +  String.format("%.4f", sumR2[3]/numOfBatch));
+		}
+		
+		
+		//compute MAE on all batches
+		
+		sumMAE[0]/=numOfBatch;
+		sumMAE[1]/=numOfBatch;
+		sumMAE[2]/=numOfBatch;
+		sumMAE[3]/=numOfBatch;
+		
+		mses.add(sumMAE);
+
+		if (printMSE) {
+			System.out.println("================== MAE ==================");
+			System.out.println(String.format("%.4f", sumMAE[0]));
+			System.out.println(String.format("%.4f", sumMAE[1]));
+			System.out.println(String.format("%.4f", sumMAE[2]));
+			System.out.println(String.format("%.4f", sumMAE[3]));
+		}
+		
+		//compute accuracyMAE on all batches
+		
+		sumaccurecyMAE[0]/=numOfBatch;
+		sumaccurecyMAE[1]/=numOfBatch;
+		sumaccurecyMAE[2]/=numOfBatch;
+		sumaccurecyMAE[3]/=numOfBatch;
+		
+		MAEarruaccys.add(sumaccurecyMAE);
+
+		if (printMAEarruaccy) {
+			System.out.println("================== MAEarruaccys ==================");
+			System.out.println(String.format("%.4f", sumaccurecyMAE[0]));
+			System.out.println(String.format("%.4f", sumaccurecyMAE[1]));
+			System.out.println(String.format("%.4f", sumaccurecyMAE[2]));
+			System.out.println(String.format("%.4f", sumaccurecyMAE[3]));
+		}
+		
+		
+		ADMEiter.reset();
+		
+		
+		
+	}
+	
 	
 	public static void test(ComputationGraph net, MultiDataSetIterator ADMEiter) {
 				

@@ -88,7 +88,7 @@ import javafx.application.Application;
  * 
  *
  */
-public class PretainNetwork {
+public class PretainSaveAndLoadNetwork {
 	
 	static int epoch = 1;
 	static int trainsetsize = 432803;
@@ -261,7 +261,7 @@ public class PretainNetwork {
 				
 				//fit data
 				substart = System.currentTimeMillis();
-				net.fit(data);
+//				net.fit(data);
 	
 				double traintime =  ((double) System.currentTimeMillis() - substart);
 				epochTime += loadingtime+maskingtime+traintime;
@@ -293,6 +293,8 @@ public class PretainNetwork {
 				}
 				
 				numberOfBatchSize++;
+				
+				break;
 
 			}
 			
@@ -302,15 +304,17 @@ public class PretainNetwork {
 			epochTime = 0;
 			subEpochTime = 0;
 			
-			//evalute every 10 epochs
-			if (i % 5 == 0) {				
-				
-				System.out.println("-------------------- tranning set ----------------------- ");
-				test(net, ADMEiter);
-				System.out.println("-------------------- validation set ----------------------- ");
-				test(net, ADMEDeviter);
-				
-			}
+//			//evalute every 10 epochs
+//			if (i % 5 == 0) {				
+//				
+//				System.out.println("-------------------- tranning set ----------------------- ");
+//				test(net, ADMEiter);
+//				System.out.println("-------------------- validation set ----------------------- ");
+//				test(net, ADMEDeviter);
+//				
+//			}
+			
+		
 		}		
 	
 		//Net Configuration Summary
@@ -326,26 +330,33 @@ public class PretainNetwork {
         File locationToSave = new File("DeepPharm.zip");       //Where to save the network. Note: the file is in .zip format - can be opened externally
         boolean saveUpdater = true;                                             //Updater: i.e., the state for Momentum, RMSProp, Adagrad etc. Save this if you want to train your network more in the future
         try {
-			ModelSerializer.writeModel(net, locationToSave, saveUpdater);
+			ModelSerializer.writeModel(net, locationToSave, false);
+			System.out.println("model saved");
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
         
-//        //Load the model
-//        try {
-//			ComputationGraph restored = ModelSerializer.restoreComputationGraph(locationToSave);
-//		} catch (IOException e) {
-//			// TODO Auto-generated catch block
-//			e.printStackTrace();
-//		}
+        //Load the model
+        try {
+			ComputationGraph restored = ModelSerializer.restoreComputationGraph(locationToSave);
+			
+			
+			System.out.println("model loaded");
+
+			System.out.println("-------------------- final testing ADME ----------------------- ");
+			System.out.println("-------------------- tranning set ----------------------- ");
+			test(restored, ADMEiter);
+			System.out.println("-------------------- validation set ----------------------- ");
+			test(restored, ADMEDeviter);
+			
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 		
 		
-		System.out.println("-------------------- final testing ADME ----------------------- ");
-		System.out.println("-------------------- tranning set ----------------------- ");
-		test(net, ADMEiter);
-		System.out.println("-------------------- validation set ----------------------- ");
-		test(net, ADMEDeviter);
+
 		
 		
 	}
